@@ -1,0 +1,30 @@
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# Variables de entorno
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# Distribución
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# Alembic
+migrations/versions/*.py
+!migrations/versions/.gitkeep
