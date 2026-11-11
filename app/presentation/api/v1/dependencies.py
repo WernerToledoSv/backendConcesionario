@@ -7,7 +7,10 @@ from app.infrastructure.database.connection import get_db
 from app.infrastructure.repositories.sqlalchemy_administrador_repository import (
     SQLAlchemyAdministradorRepository,
 )
-from app.infrastructure.security.password_hasher import PasswordHasher
+from app.infrastructure.repositories.sqlalchemy_vehiculo_repository import (
+    SQLAlchemyVehiculoRepository,
+)
+from app.infrastructure.cloudinary.cloudinary_service import CloudinaryService
 
 
 def get_administrador_repository(
@@ -16,5 +19,11 @@ def get_administrador_repository(
     return SQLAlchemyAdministradorRepository(db)
 
 
-def get_password_hasher() -> PasswordHasher:
-    return PasswordHasher()
+def get_vehiculo_repository(
+    db: Annotated[Session, Depends(get_db)],
+) -> SQLAlchemyVehiculoRepository:
+    return SQLAlchemyVehiculoRepository(db)
+
+
+def get_cloudinary_service() -> CloudinaryService:
+    return CloudinaryService()

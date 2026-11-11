@@ -10,12 +10,19 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Controla SSL en DATABASE_URL: sslmode=disable para PostgreSQL local y
+# sslmode=require para Neon.
 engine = create_engine(
     settings.DATABASE_URL,
     echo=False,
-    pool_pre_ping=True,       # Verifica la conexión antes de usarla
+    pool_pre_ping=True,    # Verifica la conexión antes de usarla (esencial para Neon)
+    pool_recycle=300,      # Recicla conexiones cada 5 min (Neon cierra las inactivas)
+    pool_timeout=30,       # Espera hasta 30s para obtener una conexión del pool
+    pool_size=5,           # Conexiones simultáneas en el pool
+    max_overflow=10,       # Conexiones extra permitidas sobre pool_size
     connect_args={
-        "connect_timeout": 5  # Falla rápido si la BD no responde (segundos)
+        "connect_timeout": 10,       # Neon puede tardar en despertar (cold start)
+        "options": "-c timezone=UTC" # Zona horaria consistente
     },
 )
 
