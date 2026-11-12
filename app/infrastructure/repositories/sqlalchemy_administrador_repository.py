@@ -19,7 +19,7 @@ class SQLAlchemyAdministradorRepository(AdministradorRepository):
             id=model.id,
             nombre=model.nombre,
             correo=model.correo,
-            password_hash=model.password_hash,
+            password=model.password,
             activo=model.activo,
             creado_en=model.creado_en,
             actualizado_en=model.actualizado_en,
@@ -47,7 +47,7 @@ class SQLAlchemyAdministradorRepository(AdministradorRepository):
         model = AdministradorModel(
             nombre=administrador.nombre,
             correo=administrador.correo,
-            password_hash=administrador.password_hash,
+            password=administrador.password,
             activo=administrador.activo,
         )
         self._db.add(model)
@@ -59,7 +59,7 @@ class SQLAlchemyAdministradorRepository(AdministradorRepository):
         model = self._db.get(AdministradorModel, administrador.id)
         model.nombre = administrador.nombre
         model.correo = administrador.correo
-        model.password_hash = administrador.password_hash
+        model.password = administrador.password
         model.activo = administrador.activo
         model.actualizado_en = datetime.now(timezone.utc)
         self._db.commit()

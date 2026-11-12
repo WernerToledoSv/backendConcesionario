@@ -17,7 +17,7 @@ class CrearAdministradorUseCase:
             id=None,
             nombre=dto.nombre,
             correo=dto.correo,
-            password_hash=dto.password,
+            password=dto.password,
         )
         saved = self._repository.save(administrador)
         return AdministradorResponseDTO(

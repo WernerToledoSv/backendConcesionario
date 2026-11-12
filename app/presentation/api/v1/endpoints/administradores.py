@@ -10,13 +10,19 @@ from app.application.dto.administrador_dto import (
 from app.application.use_cases.administradores.actualizar_administrador import ActualizarAdministradorUseCase
 from app.application.use_cases.administradores.crear_administrador import CrearAdministradorUseCase
 from app.application.use_cases.administradores.eliminar_administrador import EliminarAdministradorUseCase
+from app.application.use_cases.administradores.iniciar_sesion import IniciarSesionUseCase
 from app.application.use_cases.administradores.listar_administradores import ListarAdministradoresUseCase
 from app.application.use_cases.administradores.obtener_administrador import ObtenerAdministradorUseCase
-from app.core.exceptions import AdministradorEmailAlreadyExistsError, AdministradorNotFoundError
+from app.core.exceptions import (
+    AdministradorEmailAlreadyExistsError,
+    AdministradorNotFoundError,
+    CredencialesInvalidasError,
+)
 from app.infrastructure.repositories.sqlalchemy_administrador_repository import SQLAlchemyAdministradorRepository
 from app.presentation.api.v1.dependencies import get_administrador_repository
 from app.presentation.api.v1.schemas.administrador_schema import (
     AdministradorCreateRequest,
+    AdministradorLoginRequest,
     AdministradorResponse,
     AdministradorUpdateRequest,
 )
@@ -41,6 +47,28 @@ def _to_response(dto: AdministradorResponseDTO) -> AdministradorResponse:
 
 
 # ------------------------------------------------------------------ endpoints
+@router.post(
+    "/IniciarSesion",
+    response_model=ResponseItem[AdministradorResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Iniciar sesión como administrador",
+)
+def iniciar_sesion(body: AdministradorLoginRequest, repo: RepoDep):
+    use_case = IniciarSesionUseCase(repo)
+    try:
+        result = use_case.execute(body.correo, body.password)
+    except CredencialesInvalidasError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": 0, "message": str(exc)},
+        ) from exc
+    return ResponseItem(
+        code=1,
+        message="Inicio de sesión exitoso.",
+        item=_to_response(result),
+    )
+
+
 @router.post(
     "/CrearAdministrador",
     response_model=ResponseItem[AdministradorResponse],

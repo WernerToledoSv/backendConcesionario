@@ -10,6 +10,11 @@ class AdministradorEmailAlreadyExistsError(Exception):
         super().__init__(f"Ya existe un administrador con el email '{email}'.")
 
 
+class CredencialesInvalidasError(Exception):
+    def __init__(self):
+        super().__init__("Correo o contraseña incorrectos.")
+
+
 class VehiculoNotFoundError(Exception):
     def __init__(self, vehiculo_id: int):
         self.vehiculo_id = vehiculo_id

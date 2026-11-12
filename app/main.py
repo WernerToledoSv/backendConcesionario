@@ -1,8 +1,12 @@
 import logging
 
 from fastapi import FastAPI
+from fastapi import Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
@@ -22,6 +26,21 @@ app = FastAPI(
 )
 
 app.include_router(api_router)
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_request_validation_error(
+    request: Request,
+    exc: RequestValidationError,
+):
+    if request.url.path.startswith("/api/v1/catalogosgenerales/") or (
+        request.url.path == "/api/v1/filtros/Vehiculos"
+    ):
+        return JSONResponse(
+            status_code=422,
+            content={"code": 0, "message": "Los parámetros enviados no son válidos."},
+        )
+    return await request_validation_exception_handler(request, exc)
 
 
 @app.get("/docs", include_in_schema=False)

@@ -8,7 +8,7 @@ class Administrador:
     id: Optional[int]
     nombre: str
     correo: str
-    password_hash: str
+    password: str
     activo: bool = True
     creado_en: Optional[datetime] = None
     actualizado_en: Optional[datetime] = None

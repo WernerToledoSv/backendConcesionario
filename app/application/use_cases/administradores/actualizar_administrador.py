@@ -22,7 +22,7 @@ class ActualizarAdministradorUseCase:
             administrador.nombre = dto.nombre
 
         if dto.password is not None:
-            administrador.password_hash = dto.password
+            administrador.password = dto.password
 
         if dto.activo is not None:
             administrador.activo = dto.activo

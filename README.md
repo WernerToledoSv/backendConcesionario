@@ -185,15 +185,50 @@ FastAPI genera automáticamente documentación interactiva para consultar y ejec
 
 ## Endpoints disponibles
 
-Actualmente se encuentra desarrollada una implementación inicial para la gestión de administradores.
+Actualmente se encuentran implementados los módulos de administradores y vehículos, además del listado de solicitudes de compra.
 
 | Método | Endpoint                                               | Función                   |
 | ------ | ------------------------------------------------------ | ------------------------- |
 | POST   | `/api/v1/administradores/CrearAdministrador`           | Crear administrador.      |
+| POST   | `/api/v1/administradores/IniciarSesion`                 | Validar correo y contraseña de administrador. |
 | GET    | `/api/v1/administradores/ListarAdministradores`        | Listar administradores.   |
 | GET    | `/api/v1/administradores/ObtenerAdministrador/{id}`    | Consultar administrador.  |
 | PUT    | `/api/v1/administradores/ActualizarAdministrador/{id}` | Actualizar administrador. |
 | DELETE | `/api/v1/administradores/EliminarAdministrador/{id}`   | Eliminar administrador.   |
+| GET    | `/api/v1/solicitudes/ListarSolicitudes`                | Listar solicitudes con los vehículos asociados. |
+| GET    | `/api/v1/estadisticas/Resumen`                          | Resumen de inventario y solicitudes. |
+| GET    | `/api/v1/catalogosgenerales/Marcas`                     | Marcas registradas sin duplicados. |
+| GET    | `/api/v1/catalogosgenerales/Transmisiones`              | Transmisiones registradas sin duplicados. |
+| GET    | `/api/v1/catalogosgenerales/Combustibles`               | Combustibles registrados sin duplicados. |
+| GET    | `/api/v1/catalogosgenerales/RangoPrecios`               | Precio mínimo y máximo. |
+| GET    | `/api/v1/catalogosgenerales/Anios`                      | Años de fabricación sin duplicados. |
+| GET    | `/api/v1/catalogosgenerales/Condiciones`                | Condiciones registradas sin duplicados. |
+| GET    | `/api/v1/catalogosgenerales/RangoKilometraje`           | Kilometraje mínimo y máximo. |
+| GET    | `/api/v1/filtros/Vehiculos`                             | Vehículos filtrados por parámetros opcionales. |
+
+El inicio de sesión recibe `{"correo": "admin@automarket.com", "password": "..."}` y devuelve
+el administrador sin incluir la contraseña. También acepta `pass` como nombre alternativo
+del campo de contraseña. Las credenciales incorrectas o de un administrador inactivo devuelven
+HTTP 401. Esta ruta valida credenciales, pero no emite un token de autenticación.
+Las contraseñas se guardan y comparan como texto plano, según lo solicitado; esto reduce la
+seguridad y cualquiera con acceso a la base de datos podrá leerlas. Se conserva el nombre
+`password_hash` de la columna existente en PostgreSQL para no requerir una migración.
+
+`GET /api/v1/solicitudes/ListarSolicitudes` devuelve cada solicitud con sus datos de cliente y un
+arreglo `detalles` con los vehículos asociados (`vehiculo_id`, `marca`, `modelo`, `anio`,
+`fotoauto` y `precio_unitario`).
+
+`GET /api/v1/estadisticas/Resumen` devuelve el inventario por estado, las solicitudes por estado,
+los totales estimados de las solicitudes y el conteo mensual de solicitudes de los últimos seis
+meses calendario. El esquema actual no registra fechas de venta, transacciones, costos ni tipos de
+carrocería; por ello no permite calcular ingresos brutos, margen, unidades vendidas en un mes ni mix
+por carrocería. `vehiculos_vendidos` representa el inventario actualmente marcado como vendido,
+no ventas efectuadas en un período.
+
+El endpoint `GET /api/v1/filtros/Vehiculos` acepta `marca`, `transmision`,
+`combustible`, `precioMinimo`, `precioMaximo`, `anio`, `condicion`,
+`kilometrajeMinimo` y `kilometrajeMaximo`. Todos son opcionales y se pueden combinar;
+los límites mínimo y máximo se aplican de forma independiente.
 
 ## Formato de respuestas
 
@@ -237,9 +272,7 @@ El campo `message` describe el resultado de la operación.
 
 ## Estado del desarrollo
 
-El backend se encuentra en desarrollo. Actualmente cuenta con una implementación inicial del módulo de administradores, conexión a PostgreSQL, estructura modular y configuración básica de FastAPI.
-
-Quedan pendientes de completar los módulos de vehículos y solicitudes de compra, así como la autenticación y autorización administrativa y la integración completa de los componentes de seguridad.
+El backend se encuentra en desarrollo y cuenta con gestión de administradores y vehículos, listado de solicitudes de compra, validación de inicio de sesión, conexión a PostgreSQL y configuración básica de FastAPI. El inicio de sesión todavía no emite tokens ni protege las demás rutas administrativas.
 
 ## Consideraciones
 

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AliasChoices, BaseModel, EmailStr, Field
 
 
 class AdministradorCreateRequest(BaseModel):
@@ -15,6 +15,15 @@ class AdministradorUpdateRequest(BaseModel):
     correo: Optional[EmailStr] = None
     password: Optional[str] = Field(None, min_length=8)
     activo: Optional[bool] = None
+
+
+class AdministradorLoginRequest(BaseModel):
+    correo: EmailStr = Field(examples=["juan@automarket.com"])
+    password: str = Field(
+        min_length=1,
+        max_length=128,
+        validation_alias=AliasChoices("password", "pass"),
+    )
 
 
 class AdministradorResponse(BaseModel):
