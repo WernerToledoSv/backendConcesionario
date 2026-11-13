@@ -12,7 +12,7 @@ class AdministradorModel(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, index=True)
     nombre: Mapped[str] = mapped_column(String(120), nullable=False)
     correo: Mapped[str] = mapped_column(String(180), unique=True, nullable=False, index=True)
-    password: Mapped[str] = mapped_column("password_hash", String(255), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     creado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

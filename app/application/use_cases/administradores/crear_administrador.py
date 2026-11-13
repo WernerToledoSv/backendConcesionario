@@ -1,5 +1,9 @@
-from app.application.dto.administrador_dto import CrearAdministradorDTO, AdministradorResponseDTO
+from app.application.dto.administrador_dto import (
+    AdministradorResponseDTO,
+    CrearAdministradorDTO,
+)
 from app.core.exceptions import AdministradorEmailAlreadyExistsError
+from app.core.security import hash_password
 from app.domain.entities.administrador import Administrador
 from app.domain.repositories.administrador_repository import AdministradorRepository
 
@@ -9,15 +13,15 @@ class CrearAdministradorUseCase:
         self._repository = repository
 
     def execute(self, dto: CrearAdministradorDTO) -> AdministradorResponseDTO:
-        existing = self._repository.get_by_correo(dto.correo)
-        if existing:
-            raise AdministradorEmailAlreadyExistsError(dto.correo)
+        correo = dto.correo.strip().lower()
+        if self._repository.get_by_correo(correo):
+            raise AdministradorEmailAlreadyExistsError(correo)
 
         administrador = Administrador(
             id=None,
             nombre=dto.nombre,
-            correo=dto.correo,
-            password=dto.password,
+            correo=correo,
+            password_hash=hash_password(dto.password),
         )
         saved = self._repository.save(administrador)
         return AdministradorResponseDTO(

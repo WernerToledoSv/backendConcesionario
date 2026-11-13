@@ -7,34 +7,57 @@ from app.application.dto.administrador_dto import (
     AdministradorResponseDTO,
     CrearAdministradorDTO,
 )
-from app.application.use_cases.administradores.actualizar_administrador import ActualizarAdministradorUseCase
-from app.application.use_cases.administradores.crear_administrador import CrearAdministradorUseCase
-from app.application.use_cases.administradores.eliminar_administrador import EliminarAdministradorUseCase
-from app.application.use_cases.administradores.iniciar_sesion import IniciarSesionUseCase
-from app.application.use_cases.administradores.listar_administradores import ListarAdministradoresUseCase
-from app.application.use_cases.administradores.obtener_administrador import ObtenerAdministradorUseCase
+from app.application.use_cases.administradores.actualizar_administrador import (
+    ActualizarAdministradorUseCase,
+)
+from app.application.use_cases.administradores.crear_administrador import (
+    CrearAdministradorUseCase,
+)
+from app.application.use_cases.administradores.eliminar_administrador import (
+    EliminarAdministradorUseCase,
+)
+from app.application.use_cases.administradores.iniciar_sesion import (
+    IniciarSesionUseCase,
+)
+from app.application.use_cases.administradores.listar_administradores import (
+    ListarAdministradoresUseCase,
+)
+from app.application.use_cases.administradores.obtener_administrador import (
+    ObtenerAdministradorUseCase,
+)
 from app.core.exceptions import (
     AdministradorEmailAlreadyExistsError,
     AdministradorNotFoundError,
     CredencialesInvalidasError,
 )
-from app.infrastructure.repositories.sqlalchemy_administrador_repository import SQLAlchemyAdministradorRepository
-from app.presentation.api.v1.dependencies import get_administrador_repository
+from app.infrastructure.repositories.sqlalchemy_administrador_repository import (
+    SQLAlchemyAdministradorRepository,
+)
+from app.infrastructure.security.jwt_service import create_access_token
+from app.presentation.api.v1.dependencies import (
+    get_administrador_repository,
+    get_current_admin,
+)
 from app.presentation.api.v1.schemas.administrador_schema import (
     AdministradorCreateRequest,
     AdministradorLoginRequest,
     AdministradorResponse,
     AdministradorUpdateRequest,
+    LoginResponse,
 )
-from app.presentation.api.v1.schemas.response_schema import ResponseBase, ResponseItem, ResponseItems
+from app.presentation.api.v1.schemas.response_schema import (
+    ResponseBase,
+    ResponseItem,
+    ResponseItems,
+)
 
 router = APIRouter(prefix="/administradores", tags=["Administradores"])
+RepoDep = Annotated[
+    SQLAlchemyAdministradorRepository,
+    Depends(get_administrador_repository),
+]
 
-# ------------------------------------------------------------------ type aliases
-RepoDep = Annotated[SQLAlchemyAdministradorRepository, Depends(get_administrador_repository)]
 
-
-# ------------------------------------------------------------------ helper
 def _to_response(dto: AdministradorResponseDTO) -> AdministradorResponse:
     return AdministradorResponse(
         id=dto.id,
@@ -46,26 +69,30 @@ def _to_response(dto: AdministradorResponseDTO) -> AdministradorResponse:
     )
 
 
-# ------------------------------------------------------------------ endpoints
 @router.post(
     "/IniciarSesion",
-    response_model=ResponseItem[AdministradorResponse],
+    response_model=LoginResponse,
     status_code=status.HTTP_200_OK,
     summary="Iniciar sesión como administrador",
 )
 def iniciar_sesion(body: AdministradorLoginRequest, repo: RepoDep):
-    use_case = IniciarSesionUseCase(repo)
     try:
-        result = use_case.execute(body.correo, body.password)
+        result = IniciarSesionUseCase(repo).execute(body.correo, body.password)
     except CredencialesInvalidasError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": 0, "message": str(exc)},
+            detail={"code": 0, "message": "Correo o contraseña incorrectos."},
+            headers={"WWW-Authenticate": "Bearer"},
         ) from exc
-    return ResponseItem(
+
+    token, expires_in = create_access_token(str(result.id))
+    return LoginResponse(
         code=1,
         message="Inicio de sesión exitoso.",
         item=_to_response(result),
+        access_token=token,
+        token_type="bearer",
+        expires_in=expires_in,
     )
 
 
@@ -74,17 +101,24 @@ def iniciar_sesion(body: AdministradorLoginRequest, repo: RepoDep):
     response_model=ResponseItem[AdministradorResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Crear un nuevo administrador",
+    dependencies=[Depends(get_current_admin)],
 )
-def crear_administrador(body: AdministradorCreateRequest, repo: RepoDep):
-    use_case = CrearAdministradorUseCase(repo)
+def crear_administrador(
+    body: AdministradorCreateRequest,
+    repo: RepoDep,
+):
     try:
-        dto = CrearAdministradorDTO(nombre=body.nombre, correo=body.correo, password=body.password)
-        result = use_case.execute(dto)
+        dto = CrearAdministradorDTO(
+            nombre=body.nombre,
+            correo=body.correo,
+            password=body.password,
+        )
+        result = CrearAdministradorUseCase(repo).execute(dto)
     except AdministradorEmailAlreadyExistsError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": 0, "message": str(exc)},
-        )
+        ) from exc
     return ResponseItem(
         code=1,
         message="Administrador creado exitosamente.",
@@ -97,14 +131,14 @@ def crear_administrador(body: AdministradorCreateRequest, repo: RepoDep):
     response_model=ResponseItems[AdministradorResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar todos los administradores",
+    dependencies=[Depends(get_current_admin)],
 )
 def listar_administradores(repo: RepoDep):
-    use_case = ListarAdministradoresUseCase(repo)
-    items = use_case.execute()
+    items = ListarAdministradoresUseCase(repo).execute()
     return ResponseItems(
         code=1,
         message="Registros obtenidos exitosamente.",
-        items=[_to_response(a) for a in items],
+        items=[_to_response(admin) for admin in items],
     )
 
 
@@ -113,16 +147,19 @@ def listar_administradores(repo: RepoDep):
     response_model=ResponseItem[AdministradorResponse],
     status_code=status.HTTP_200_OK,
     summary="Obtener un administrador por ID",
+    dependencies=[Depends(get_current_admin)],
 )
-def obtener_administrador(administrador_id: int, repo: RepoDep):
-    use_case = ObtenerAdministradorUseCase(repo)
+def obtener_administrador(
+    administrador_id: int,
+    repo: RepoDep,
+):
     try:
-        result = use_case.execute(administrador_id)
+        result = ObtenerAdministradorUseCase(repo).execute(administrador_id)
     except AdministradorNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": 0, "message": str(exc)},
-        )
+        ) from exc
     return ResponseItem(
         code=1,
         message="Administrador obtenido exitosamente.",
@@ -135,13 +172,13 @@ def obtener_administrador(administrador_id: int, repo: RepoDep):
     response_model=ResponseBase,
     status_code=status.HTTP_200_OK,
     summary="Actualizar un administrador",
+    dependencies=[Depends(get_current_admin)],
 )
 def actualizar_administrador(
     administrador_id: int,
     body: AdministradorUpdateRequest,
     repo: RepoDep,
 ):
-    use_case = ActualizarAdministradorUseCase(repo)
     try:
         dto = ActualizarAdministradorDTO(
             nombre=body.nombre,
@@ -149,17 +186,17 @@ def actualizar_administrador(
             password=body.password,
             activo=body.activo,
         )
-        use_case.execute(administrador_id, dto)
+        ActualizarAdministradorUseCase(repo).execute(administrador_id, dto)
     except AdministradorNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": 0, "message": str(exc)},
-        )
+        ) from exc
     except AdministradorEmailAlreadyExistsError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": 0, "message": str(exc)},
-        )
+        ) from exc
     return ResponseBase(
         code=1,
         message="Administrador actualizado exitosamente.",
@@ -171,16 +208,19 @@ def actualizar_administrador(
     response_model=ResponseBase,
     status_code=status.HTTP_200_OK,
     summary="Eliminar un administrador",
+    dependencies=[Depends(get_current_admin)],
 )
-def eliminar_administrador(administrador_id: int, repo: RepoDep):
-    use_case = EliminarAdministradorUseCase(repo)
+def eliminar_administrador(
+    administrador_id: int,
+    repo: RepoDep,
+):
     try:
-        use_case.execute(administrador_id)
+        EliminarAdministradorUseCase(repo).execute(administrador_id)
     except AdministradorNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": 0, "message": str(exc)},
-        )
+        ) from exc
     return ResponseBase(
         code=1,
         message="Administrador eliminado exitosamente.",
