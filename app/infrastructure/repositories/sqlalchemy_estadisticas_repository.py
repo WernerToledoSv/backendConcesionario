@@ -6,19 +6,10 @@ from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
 from app.domain.entities.estadisticas import Estadisticas, SolicitudesPorMes
+from app.domain.entities.solicitud_compra import SOLICITUD_ESTADOS
 from app.domain.repositories.estadisticas_repository import EstadisticasRepository
 from app.infrastructure.models.solicitud_model import SolicitudCompraModel
 from app.infrastructure.models.vehiculo_model import VehiculoModel
-
-
-SOLICITUD_ESTADOS = (
-    "pendiente",
-    "contactado",
-    "confirmada",
-    "rechazada",
-    "cancelada",
-    "completada",
-)
 
 
 class SQLAlchemyEstadisticasRepository(EstadisticasRepository):

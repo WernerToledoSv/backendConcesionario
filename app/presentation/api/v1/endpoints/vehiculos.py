@@ -17,7 +17,11 @@ from app.core.config import settings
 from app.core.exceptions import VehiculoNotFoundError
 from app.infrastructure.cloudinary.cloudinary_service import CloudinaryService
 from app.infrastructure.repositories.sqlalchemy_vehiculo_repository import SQLAlchemyVehiculoRepository
-from app.presentation.api.v1.dependencies import get_cloudinary_service, get_vehiculo_repository
+from app.presentation.api.v1.dependencies import (
+    get_cloudinary_service,
+    get_current_admin,
+    get_vehiculo_repository,
+)
 from app.presentation.api.v1.schemas.response_schema import ResponseBase, ResponseItem, ResponseItems
 from app.presentation.api.v1.schemas.vehiculo_schema import VehiculoResponse, VehiculoUpdateRequest
 
@@ -83,6 +87,7 @@ async def _upload_vehicle_image(
     response_model=ResponseItem[VehiculoResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Crear un nuevo vehículo",
+    dependencies=[Depends(get_current_admin)],
 )
 async def crear_vehiculo(
     repo: RepoDep,
@@ -169,6 +174,7 @@ def obtener_vehiculo(vehiculo_id: int, repo: RepoDep):
     response_model=ResponseBase,
     status_code=status.HTTP_200_OK,
     summary="Actualizar un vehículo",
+    dependencies=[Depends(get_current_admin)],
 )
 async def actualizar_vehiculo(
     vehiculo_id: int,
@@ -213,8 +219,12 @@ async def actualizar_vehiculo(
     response_model=ResponseBase,
     status_code=status.HTTP_200_OK,
     summary="Eliminar un vehículo",
+    dependencies=[Depends(get_current_admin)],
 )
-def eliminar_vehiculo(vehiculo_id: int, repo: RepoDep):
+def eliminar_vehiculo(
+    vehiculo_id: int,
+    repo: RepoDep,
+):
     use_case = EliminarVehiculoUseCase(repo)
     try:
         use_case.execute(vehiculo_id)

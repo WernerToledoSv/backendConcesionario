@@ -5,6 +5,15 @@ from typing import List, Optional
 
 
 @dataclass
+class CrearSolicitudDTO:
+    nombre_cliente: str
+    correo_cliente: str
+    telefono_cliente: str
+    vehiculos_ids: List[int]
+    mensaje_cliente: Optional[str] = None
+
+
+@dataclass
 class DetalleSolicitudResponseDTO:
     id: int
     vehiculo_id: int

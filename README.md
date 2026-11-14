@@ -158,6 +158,18 @@ DATABASE_URL=postgresql+psycopg2://usuario:contraseña@host:5432/base_datos?sslm
 
 Reemplazar los valores de ejemplo por las credenciales correspondientes a la base de datos.
 
+`JWT_SECRET_KEY` es obligatorio y debe ser una clave aleatoria de al menos 32 caracteres. Puede
+generarse con:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+`JWT_ACCESS_TOKEN_EXPIRE_MINUTES` controla la vida del token (por defecto 15 minutos; máximo 60).
+El inicio de sesión devuelve `expires_in` en minutos. `JWT_ISSUER` identifica al emisor (por
+defecto `automarket-api`). En despliegues con varias instancias, todas deben compartir la misma
+clave.
+
 ### 5. Ejecutar el backend
 
 Desde la raíz del proyecto ejecutar:
@@ -185,18 +197,25 @@ FastAPI genera automáticamente documentación interactiva para consultar y ejec
 
 ## Endpoints disponibles
 
-Actualmente se encuentran implementados los módulos de administradores y vehículos, además del listado de solicitudes de compra.
+La API incluye administración protegida, catálogo público de vehículos y el flujo de solicitudes de compra.
 
 | Método | Endpoint                                               | Función                   |
 | ------ | ------------------------------------------------------ | ------------------------- |
-| POST   | `/api/v1/administradores/CrearAdministrador`           | Crear administrador.      |
-| POST   | `/api/v1/administradores/IniciarSesion`                 | Validar correo y contraseña de administrador. |
-| GET    | `/api/v1/administradores/ListarAdministradores`        | Listar administradores.   |
-| GET    | `/api/v1/administradores/ObtenerAdministrador/{id}`    | Consultar administrador.  |
-| PUT    | `/api/v1/administradores/ActualizarAdministrador/{id}` | Actualizar administrador. |
-| DELETE | `/api/v1/administradores/EliminarAdministrador/{id}`   | Eliminar administrador.   |
-| GET    | `/api/v1/solicitudes/ListarSolicitudes`                | Listar solicitudes con los vehículos asociados. |
-| GET    | `/api/v1/estadisticas/Resumen`                          | Resumen de inventario y solicitudes. |
+| POST   | `/api/v1/administradores/IniciarSesion` | Validar credenciales y emitir token JWT. |
+| POST   | `/api/v1/administradores/RefrescarToken` | Emitir un nuevo token usando un access token vigente. |
+| POST   | `/api/v1/administradores/CrearAdministrador` | Crear administrador (JWT requerido). |
+| GET    | `/api/v1/administradores/ListarAdministradores` | Listar administradores (JWT requerido). |
+| GET    | `/api/v1/administradores/ObtenerAdministrador/{id}` | Consultar administrador (JWT requerido). |
+| PUT    | `/api/v1/administradores/ActualizarAdministrador/{id}` | Actualizar administrador (JWT requerido). |
+| DELETE | `/api/v1/administradores/EliminarAdministrador/{id}` | Eliminar administrador (JWT requerido). |
+| POST   | `/api/v1/solicitudes/CrearSolicitud` | Crear solicitud pública; precios calculados por el servidor. |
+| GET    | `/api/v1/solicitudes/ListarSolicitudes` | Listar solicitudes con detalle (JWT requerido). |
+| PATCH  | `/api/v1/solicitudes/ActualizarNotas/{id}` | Actualizar notas administrativas (JWT requerido). |
+| PATCH  | `/api/v1/solicitudes/ActualizarEstado/{id}` | Cambiar estado con transiciones validadas (JWT requerido). |
+| GET    | `/api/v1/estadisticas/Resumen` | Resumen de inventario y solicitudes (JWT requerido). |
+| POST   | `/api/v1/vehiculos/CrearVehiculo` | Crear vehículo (JWT requerido). |
+| PUT    | `/api/v1/vehiculos/ActualizarVehiculo/{id}` | Actualizar vehículo (JWT requerido). |
+| DELETE | `/api/v1/vehiculos/EliminarVehiculo/{id}` | Eliminar vehículo (JWT requerido). |
 | GET    | `/api/v1/catalogosgenerales/Marcas`                     | Marcas registradas sin duplicados. |
 | GET    | `/api/v1/catalogosgenerales/Transmisiones`              | Transmisiones registradas sin duplicados. |
 | GET    | `/api/v1/catalogosgenerales/Combustibles`               | Combustibles registrados sin duplicados. |
@@ -206,13 +225,35 @@ Actualmente se encuentran implementados los módulos de administradores y vehíc
 | GET    | `/api/v1/catalogosgenerales/RangoKilometraje`           | Kilometraje mínimo y máximo. |
 | GET    | `/api/v1/filtros/Vehiculos`                             | Vehículos filtrados por parámetros opcionales. |
 
-El inicio de sesión recibe `{"correo": "admin@automarket.com", "password": "..."}` y devuelve
-el administrador sin incluir la contraseña. También acepta `pass` como nombre alternativo
-del campo de contraseña. Las credenciales incorrectas o de un administrador inactivo devuelven
-HTTP 401. Esta ruta valida credenciales, pero no emite un token de autenticación.
-Las contraseñas se guardan y comparan como texto plano, según lo solicitado; esto reduce la
-seguridad y cualquiera con acceso a la base de datos podrá leerlas. Se conserva el nombre
-`password_hash` de la columna existente en PostgreSQL para no requerir una migración.
+El inicio de sesión recibe `{"correo": "admin@automarket.com", "password": "..."}`. Si las
+credenciales son correctas, devuelve el administrador sin la contraseña y un token JWT de acceso
+con vigencia corta. En las rutas protegidas se debe enviar
+`Authorization: Bearer <access_token>`. Los tokens se firman y validan únicamente con HS256;
+la API comprueba su expiración, emisor y que el administrador siga activo. Para obtener un nuevo
+access token antes de que venza, enviar el token vigente como Bearer a
+`POST /api/v1/administradores/RefrescarToken`. La ruta no acepta tokens vencidos ni emite un refresh
+token separado; el token anterior sigue válido hasta su expiración.
+
+Las contraseñas nuevas se almacenan con Argon2id y una sal única. Si la base de datos contiene las
+contraseñas en texto plano de la versión anterior, ejecutar una vez
+`python -m app.scripts.rehash_legacy_admin_passwords` antes de desplegar esta versión. El script
+actualiza el contenido de `password_hash` sin cambiar el esquema.
+
+El endpoint público `POST /api/v1/solicitudes/CrearSolicitud` recibe datos del cliente,
+`vehiculos_ids` y un mensaje opcional. No acepta precios ni total: ambos se calculan con los precios
+actuales de los vehículos en una transacción junto con los detalles. La solicitud debe incluir al
+menos un vehículo existente y no puede repetir identificadores.
+
+El cambio de estado permite únicamente estas transiciones:
+
+| Estado actual | Estados permitidos |
+| ------------- | ------------------ |
+| `pendiente` | `contactado`, `rechazada`, `cancelada` |
+| `contactado` | `confirmada`, `rechazada`, `cancelada` |
+| `confirmada` | `completada`, `cancelada` |
+| `rechazada`, `cancelada`, `completada` | Ninguno (finales) |
+
+Cada cambio de estado o de notas administrativas actualiza `actualizado_en`.
 
 `GET /api/v1/solicitudes/ListarSolicitudes` devuelve cada solicitud con sus datos de cliente y un
 arreglo `detalles` con los vehículos asociados (`vehiculo_id`, `marca`, `modelo`, `anio`,
@@ -270,9 +311,23 @@ El campo `code` representa el resultado de la operación:
 
 El campo `message` describe el resultado de la operación.
 
-## Estado del desarrollo
+## Preparación de administradores
 
-El backend se encuentra en desarrollo y cuenta con gestión de administradores y vehículos, listado de solicitudes de compra, validación de inicio de sesión, conexión a PostgreSQL y configuración básica de FastAPI. El inicio de sesión todavía no emite tokens ni protege las demás rutas administrativas.
+La creación de administradores por API requiere un JWT. Para el primer administrador, ejecutar
+`python -m app.scripts.create_initial_admin` desde la raíz con las variables de entorno y la base de
+datos configuradas. El comando solicita la contraseña de forma interactiva y solo funciona si aún
+no hay administradores.
+
+## Pruebas
+
+Instalar las dependencias de desarrollo y ejecutar la suite:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+Las pruebas usan SQLite en memoria; no requieren una base PostgreSQL ni credenciales reales.
 
 ## Consideraciones
 

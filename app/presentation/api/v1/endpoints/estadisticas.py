@@ -9,7 +9,10 @@ from app.application.use_cases.estadisticas.obtener_resumen import (
 from app.infrastructure.repositories.sqlalchemy_estadisticas_repository import (
     SQLAlchemyEstadisticasRepository,
 )
-from app.presentation.api.v1.dependencies import get_estadisticas_repository
+from app.presentation.api.v1.dependencies import (
+    get_current_admin,
+    get_estadisticas_repository,
+)
 from app.presentation.api.v1.schemas.estadisticas_schema import (
     EstadisticasResponse,
     SolicitudesPorMesResponse,
@@ -56,6 +59,7 @@ def _to_response(dto: EstadisticasResponseDTO) -> EstadisticasResponse:
     response_model=ResponseItem[EstadisticasResponse],
     status_code=status.HTTP_200_OK,
     summary="Obtener resumen de inventario y solicitudes",
+    dependencies=[Depends(get_current_admin)],
 )
 def obtener_resumen_estadisticas(repo: RepoDep):
     resumen = ObtenerResumenEstadisticasUseCase(repo).execute()

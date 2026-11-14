@@ -5,6 +5,24 @@ from typing import List, Optional
 
 from app.domain.entities.detalle_solicitud import DetalleSolicitud
 
+SOLICITUD_ESTADOS = (
+    "pendiente",
+    "contactado",
+    "confirmada",
+    "rechazada",
+    "cancelada",
+    "completada",
+)
+
+TRANSICIONES_SOLICITUD = {
+    "pendiente": {"contactado", "rechazada", "cancelada"},
+    "contactado": {"confirmada", "rechazada", "cancelada"},
+    "confirmada": {"completada", "cancelada"},
+    "rechazada": set(),
+    "cancelada": set(),
+    "completada": set(),
+}
+
 
 @dataclass
 class SolicitudCompra:
