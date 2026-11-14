@@ -1,18 +1,22 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
 from typing import List, Optional
 
 from app.domain.entities.detalle_solicitud import DetalleSolicitud
 
-SOLICITUD_ESTADOS = (
-    "pendiente",
-    "contactado",
-    "confirmada",
-    "rechazada",
-    "cancelada",
-    "completada",
-)
+
+class EstadoSolicitud(str, Enum):
+    PENDIENTE = "pendiente"
+    CONTACTADO = "contactado"
+    CONFIRMADA = "confirmada"
+    RECHAZADA = "rechazada"
+    CANCELADA = "cancelada"
+    COMPLETADA = "completada"
+
+
+SOLICITUD_ESTADOS = tuple(estado.value for estado in EstadoSolicitud)
 
 TRANSICIONES_SOLICITUD = {
     "pendiente": {"contactado", "rechazada", "cancelada"},

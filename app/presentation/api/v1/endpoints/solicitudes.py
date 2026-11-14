@@ -178,7 +178,10 @@ def actualizar_estado(
     repo: RepoDep,
 ):
     try:
-        ActualizarEstadoSolicitudUseCase(repo).execute(solicitud_id, body.estado)
+        ActualizarEstadoSolicitudUseCase(repo).execute(
+            solicitud_id,
+            body.estado.value,
+        )
     except SolicitudNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

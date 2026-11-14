@@ -1,8 +1,10 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Annotated, List, Literal, Optional
+from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from app.domain.entities.solicitud_compra import EstadoSolicitud
 
 
 class CrearSolicitudRequest(BaseModel):
@@ -25,14 +27,7 @@ class CrearSolicitudRequest(BaseModel):
 
 
 class ActualizarEstadoSolicitudRequest(BaseModel):
-    estado: Literal[
-        "pendiente",
-        "contactado",
-        "confirmada",
-        "rechazada",
-        "cancelada",
-        "completada",
-    ]
+    estado: EstadoSolicitud
 
 
 class ActualizarNotasSolicitudRequest(BaseModel):

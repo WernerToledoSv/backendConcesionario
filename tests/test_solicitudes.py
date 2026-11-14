@@ -101,6 +101,20 @@ def test_public_request_uses_server_prices_and_is_atomic(client, test_db):
         assert db.query(SolicitudCompraModel).count() == 1
 
 
+def test_catalog_lists_all_request_states(client):
+    response = client.get("/api/v1/catalogosgenerales/EstadosSolicitudes")
+
+    assert response.status_code == 200
+    assert response.json()["items"] == [
+        "pendiente",
+        "contactado",
+        "confirmada",
+        "rechazada",
+        "cancelada",
+        "completada",
+    ]
+
+
 def test_notes_and_state_changes_require_admin_and_update_request(client, test_db):
     vehicle_id = add_vehicle(test_db, "Marca A", "12000.00")
     created = client.post(

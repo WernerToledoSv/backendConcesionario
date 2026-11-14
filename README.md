@@ -223,6 +223,7 @@ La API incluye administración protegida, catálogo público de vehículos y el 
 | GET    | `/api/v1/catalogosgenerales/Anios`                      | Años de fabricación sin duplicados. |
 | GET    | `/api/v1/catalogosgenerales/Condiciones`                | Condiciones registradas sin duplicados. |
 | GET    | `/api/v1/catalogosgenerales/RangoKilometraje`           | Kilometraje mínimo y máximo. |
+| GET    | `/api/v1/catalogosgenerales/EstadosSolicitudes`          | Estados permitidos para solicitudes de compra. |
 | GET    | `/api/v1/filtros/Vehiculos`                             | Vehículos filtrados por parámetros opcionales. |
 
 El inicio de sesión recibe `{"correo": "admin@automarket.com", "password": "..."}`. Si las

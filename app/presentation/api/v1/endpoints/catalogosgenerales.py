@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, status
 from app.application.use_cases.vehiculos.obtener_catalogos import (
     ObtenerCatalogosVehiculoUseCase,
 )
+from app.domain.entities.solicitud_compra import EstadoSolicitud
 from app.infrastructure.repositories.sqlalchemy_vehiculo_repository import (
     SQLAlchemyVehiculoRepository,
 )
@@ -104,6 +105,20 @@ def obtener_condiciones(repo: RepoDep):
         code=1,
         message="Condiciones obtenidas exitosamente.",
         items=ObtenerCatalogosVehiculoUseCase(repo).condiciones(),
+    )
+
+
+@router.get(
+    "/EstadosSolicitudes",
+    response_model=ResponseItems[str],
+    status_code=status.HTTP_200_OK,
+    summary="Obtener estados de solicitudes",
+)
+def obtener_estados_solicitudes():
+    return ResponseItems(
+        code=1,
+        message="Estados de solicitudes obtenidos exitosamente.",
+        items=[estado.value for estado in EstadoSolicitud],
     )
 
 
