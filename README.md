@@ -165,9 +165,10 @@ generarse con:
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-`JWT_ACCESS_TOKEN_EXPIRE_MINUTES` controla la vida del token (por defecto 15 minutos; máximo 60) y
-`JWT_ISSUER` identifica al emisor (por defecto `automarket-api`). En despliegues con varias
-instancias, todas deben compartir la misma clave.
+`JWT_ACCESS_TOKEN_EXPIRE_MINUTES` controla la vida del token (por defecto 15 minutos; máximo 60).
+El inicio de sesión devuelve `expires_in` en minutos. `JWT_ISSUER` identifica al emisor (por
+defecto `automarket-api`). En despliegues con varias instancias, todas deben compartir la misma
+clave.
 
 ### 5. Ejecutar el backend
 
@@ -201,6 +202,7 @@ La API incluye administración protegida, catálogo público de vehículos y el 
 | Método | Endpoint                                               | Función                   |
 | ------ | ------------------------------------------------------ | ------------------------- |
 | POST   | `/api/v1/administradores/IniciarSesion` | Validar credenciales y emitir token JWT. |
+| POST   | `/api/v1/administradores/RefrescarToken` | Emitir un nuevo token usando un access token vigente. |
 | POST   | `/api/v1/administradores/CrearAdministrador` | Crear administrador (JWT requerido). |
 | GET    | `/api/v1/administradores/ListarAdministradores` | Listar administradores (JWT requerido). |
 | GET    | `/api/v1/administradores/ObtenerAdministrador/{id}` | Consultar administrador (JWT requerido). |
@@ -227,8 +229,10 @@ El inicio de sesión recibe `{"correo": "admin@automarket.com", "password": "...
 credenciales son correctas, devuelve el administrador sin la contraseña y un token JWT de acceso
 con vigencia corta. En las rutas protegidas se debe enviar
 `Authorization: Bearer <access_token>`. Los tokens se firman y validan únicamente con HS256;
-la API comprueba su expiración, emisor y que el administrador siga activo. No hay refresh token:
-con la vigencia corta y sin almacenamiento de sesiones no se mantiene un mecanismo de revocación.
+la API comprueba su expiración, emisor y que el administrador siga activo. Para obtener un nuevo
+access token antes de que venza, enviar el token vigente como Bearer a
+`POST /api/v1/administradores/RefrescarToken`. La ruta no acepta tokens vencidos ni emite un refresh
+token separado; el token anterior sigue válido hasta su expiración.
 
 Las contraseñas nuevas se almacenan con Argon2id y una sal única. Si la base de datos contiene las
 contraseñas en texto plano de la versión anterior, ejecutar una vez

@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -16,13 +17,14 @@ def create_access_token(subject: str) -> tuple[str, int]:
         "iat": now,
         "exp": expires_at,
         "iss": settings.JWT_ISSUER,
+        "jti": secrets.token_urlsafe(16),
     }
     token = jwt.encode(
         claims,
         settings.JWT_SECRET_KEY.get_secret_value(),
         algorithm=ALGORITHM,
     )
-    return token, settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    return token, settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 def get_admin_id_from_access_token(token: str) -> int:

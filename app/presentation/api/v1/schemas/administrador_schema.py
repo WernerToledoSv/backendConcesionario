@@ -7,7 +7,7 @@ from pydantic import AliasChoices, BaseModel, EmailStr, Field
 class AdministradorCreateRequest(BaseModel):
     nombre: str = Field(..., min_length=2, max_length=120, examples=["Juan Pérez"])
     correo: EmailStr = Field(..., examples=["juan@automarket.com"])
-    password: str = Field(..., min_length=12, max_length=128)
+    password: str = Field(..., min_length=3, max_length=128)
 
 
 class AdministradorUpdateRequest(BaseModel):
@@ -43,4 +43,12 @@ class LoginResponse(BaseModel):
     item: AdministradorResponse
     access_token: str
     token_type: str
-    expires_in: int
+    expires_in: int = Field(description="Tiempo de vida del token en minutos.")
+
+
+class RefreshTokenResponse(BaseModel):
+    code: int
+    message: str
+    access_token: str
+    token_type: str
+    expires_in: int = Field(description="Tiempo de vida del token en minutos.")

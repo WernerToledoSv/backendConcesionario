@@ -30,6 +30,7 @@ from app.core.exceptions import (
     AdministradorNotFoundError,
     CredencialesInvalidasError,
 )
+from app.domain.entities.administrador import Administrador
 from app.infrastructure.repositories.sqlalchemy_administrador_repository import (
     SQLAlchemyAdministradorRepository,
 )
@@ -44,6 +45,7 @@ from app.presentation.api.v1.schemas.administrador_schema import (
     AdministradorResponse,
     AdministradorUpdateRequest,
     LoginResponse,
+    RefreshTokenResponse,
 )
 from app.presentation.api.v1.schemas.response_schema import (
     ResponseBase,
@@ -90,6 +92,31 @@ def iniciar_sesion(body: AdministradorLoginRequest, repo: RepoDep):
         code=1,
         message="Inicio de sesión exitoso.",
         item=_to_response(result),
+        access_token=token,
+        token_type="bearer",
+        expires_in=expires_in,
+    )
+
+
+@router.post(
+    "/RefrescarToken",
+    response_model=RefreshTokenResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Emitir un nuevo token de acceso",
+)
+def refrescar_token(
+    current_admin: Annotated[Administrador, Depends(get_current_admin)],
+):
+    if current_admin.id is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": 0, "message": "No se pudo identificar al administrador."},
+        )
+
+    token, expires_in = create_access_token(str(current_admin.id))
+    return RefreshTokenResponse(
+        code=1,
+        message="Token renovado exitosamente.",
         access_token=token,
         token_type="bearer",
         expires_in=expires_in,

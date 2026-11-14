@@ -40,7 +40,7 @@ def test_login_issues_jwt_and_protects_admin_routes(client, test_db):
     assert response.status_code == 200
     payload = response.json()
     assert payload["token_type"] == "bearer"
-    assert payload["expires_in"] == 900
+    assert payload["expires_in"] == 15
     assert payload["item"]["correo"] == "admin@example.com"
     assert "password_hash" not in payload["item"]
     with test_db() as db:
@@ -79,6 +79,40 @@ def test_login_errors_are_generic_for_unknown_and_wrong_password(client, test_db
     assert wrong_password.json()["detail"] == unknown_user.json()["detail"]
 
 
+def test_refresh_endpoint_issues_new_access_token(client, test_db):
+    admin_id = add_admin(test_db)
+    original_token = login(client)
+
+    response = client.post(
+        "/api/v1/administradores/RefrescarToken",
+        headers={"Authorization": f"Bearer {original_token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["code"] == 1
+    assert payload["token_type"] == "bearer"
+    assert payload["expires_in"] == 15
+    assert payload["access_token"] != original_token
+    claims = jwt.decode(
+        payload["access_token"],
+        settings.JWT_SECRET_KEY.get_secret_value(),
+        algorithms=["HS256"],
+        issuer=settings.JWT_ISSUER,
+    )
+    assert claims["sub"] == str(admin_id)
+    assert "jti" in claims
+
+
+def test_refresh_endpoint_requires_valid_unexpired_access_token(client):
+    assert client.post("/api/v1/administradores/RefrescarToken").status_code == 401
+    response = client.post(
+        "/api/v1/administradores/RefrescarToken",
+        headers={"Authorization": "Bearer not-a-jwt"},
+    )
+    assert response.status_code == 401
+
+
 def test_expired_and_invalid_tokens_are_rejected(client, test_db):
     admin_id = add_admin(test_db)
     expired_token = jwt.encode(
@@ -107,6 +141,11 @@ def test_expired_and_invalid_tokens_are_rejected(client, test_db):
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 401
+        refresh_response = client.post(
+            "/api/v1/administradores/RefrescarToken",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert refresh_response.status_code == 401
 
 
 def test_token_is_rejected_if_admin_becomes_inactive(client, test_db):
@@ -123,22 +162,40 @@ def test_token_is_rejected_if_admin_becomes_inactive(client, test_db):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 401
+    refresh_response = client.post(
+        "/api/v1/administradores/RefrescarToken",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert refresh_response.status_code == 401
 
 
 def test_administrative_routes_require_authentication(client):
     assert client.get("/api/v1/solicitudes/ListarSolicitudes").status_code == 401
     assert client.get("/api/v1/estadisticas/Resumen").status_code == 401
-    assert (
-        client.post(
-            "/api/v1/administradores/CrearAdministrador",
-            json={
-                "nombre": "Otro Admin",
-                "correo": "other@example.com",
-                "password": "another-secure-password",
-            },
-        ).status_code
-        == 401
+
+
+def test_create_admin_requires_authentication(client, test_db):
+    add_admin(test_db)
+    payload = {
+        "nombre": "Nuevo Admin",
+        "correo": "new-admin@example.com",
+        "password": "123",
+    }
+
+    unauthenticated_response = client.post(
+        "/api/v1/administradores/CrearAdministrador",
+        json=payload,
     )
+    assert unauthenticated_response.status_code == 401
+
+    token = login(client)
+    authenticated_response = client.post(
+        "/api/v1/administradores/CrearAdministrador",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert authenticated_response.status_code == 201
+    assert authenticated_response.json()["item"]["correo"] == "new-admin@example.com"
 
 
 def test_vehicle_mutations_require_authentication(client):
