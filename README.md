@@ -209,7 +209,7 @@ La API incluye administración protegida, catálogo público de vehículos y el 
 | PUT    | `/api/v1/administradores/ActualizarAdministrador/{id}` | Actualizar administrador (JWT requerido). |
 | DELETE | `/api/v1/administradores/EliminarAdministrador/{id}` | Eliminar administrador (JWT requerido). |
 | POST   | `/api/v1/solicitudes/CrearSolicitud` | Crear solicitud pública; precios calculados por el servidor. |
-| GET    | `/api/v1/solicitudes/ListarSolicitudes` | Listar solicitudes con detalle (JWT requerido). |
+| GET    | `/api/v1/solicitudes/ListarSolicitudes` | Listar solicitudes con detalle; filtro opcional `?estado=pendiente` (JWT requerido). |
 | PATCH  | `/api/v1/solicitudes/ActualizarNotas/{id}` | Actualizar notas administrativas (JWT requerido). |
 | PATCH  | `/api/v1/solicitudes/ActualizarEstado/{id}` | Cambiar estado con transiciones validadas (JWT requerido). |
 | GET    | `/api/v1/estadisticas/Resumen` | Resumen de inventario y solicitudes (JWT requerido). |
@@ -258,7 +258,9 @@ Cada cambio de estado o de notas administrativas actualiza `actualizado_en`.
 
 `GET /api/v1/solicitudes/ListarSolicitudes` devuelve cada solicitud con sus datos de cliente y un
 arreglo `detalles` con los vehículos asociados (`vehiculo_id`, `marca`, `modelo`, `anio`,
-`fotoauto` y `precio_unitario`).
+`fotoauto` y `precio_unitario`). Acepta el parámetro opcional `estado` para filtrar por estado válido
+(`pendiente`, `contactado`, `confirmada`, `rechazada`, `cancelada` o `completada`); por ejemplo,
+`GET /api/v1/solicitudes/ListarSolicitudes?estado=pendiente`. La ruta requiere un token JWT.
 
 `GET /api/v1/estadisticas/Resumen` devuelve el inventario por estado, las solicitudes por estado,
 los totales estimados de las solicitudes y el conteo mensual de solicitudes de los últimos seis

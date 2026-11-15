@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.exceptions import VehiculosSolicitudNotFoundError
 from app.domain.entities.detalle_solicitud import DetalleSolicitud
-from app.domain.entities.solicitud_compra import SolicitudCompra
+from app.domain.entities.solicitud_compra import EstadoSolicitud, SolicitudCompra
 from app.domain.repositories.solicitud_repository import SolicitudRepository
 from app.infrastructure.models.detalle_solicitud_model import DetalleSolicitudModel
 from app.infrastructure.models.solicitud_model import SolicitudCompraModel
@@ -82,9 +82,15 @@ class SQLAlchemySolicitudRepository(SolicitudRepository):
         )
         return self._to_entity(model) if model else None
 
-    def get_all(self) -> List[SolicitudCompra]:
+    def get_all(
+        self,
+        estado: Optional[EstadoSolicitud] = None,
+    ) -> List[SolicitudCompra]:
+        query = self._db.query(SolicitudCompraModel)
+        if estado is not None:
+            query = query.filter(SolicitudCompraModel.estado == estado.value)
         models = (
-            self._db.query(SolicitudCompraModel)
+            query
             .options(
                 selectinload(SolicitudCompraModel.detalles).joinedload(
                     DetalleSolicitudModel.vehiculo

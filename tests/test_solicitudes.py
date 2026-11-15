@@ -179,3 +179,60 @@ def test_notes_and_state_changes_require_admin_and_update_request(client, test_d
     assert request_data["estado"] == "completada"
     assert request_data["notas_administrador"] == "Llamar mañana."
     assert request_data["actualizado_en"] is not None
+
+
+def test_list_requests_can_filter_by_state_with_admin_token(client, test_db):
+    vehicle_id = add_vehicle(test_db, "Marca A", "12000.00")
+    request_ids = []
+    for customer in ("Cliente Uno", "Cliente Dos"):
+        created = client.post(
+            "/api/v1/solicitudes/CrearSolicitud",
+            json={
+                "nombre_cliente": customer,
+                "correo_cliente": f"{customer.lower().replace(' ', '')}@example.com",
+                "telefono_cliente": "555-0101",
+                "vehiculos_ids": [vehicle_id],
+            },
+        )
+        assert created.status_code == 201
+        request_ids.append(created.json()["item"]["id"])
+
+    headers = login_headers(client, test_db)
+    updated = client.patch(
+        f"/api/v1/solicitudes/ActualizarEstado/{request_ids[0]}",
+        json={"estado": "contactado"},
+        headers=headers,
+    )
+    assert updated.status_code == 200
+
+    assert (
+        client.get(
+            "/api/v1/solicitudes/ListarSolicitudes?estado=contactado"
+        ).status_code
+        == 401
+    )
+    filtered = client.get(
+        "/api/v1/solicitudes/ListarSolicitudes?estado=contactado",
+        headers=headers,
+    )
+    pending = client.get(
+        "/api/v1/solicitudes/ListarSolicitudes?estado=pendiente",
+        headers=headers,
+    )
+    unfiltered = client.get(
+        "/api/v1/solicitudes/ListarSolicitudes",
+        headers=headers,
+    )
+    invalid_state = client.get(
+        "/api/v1/solicitudes/ListarSolicitudes?estado=archivada",
+        headers=headers,
+    )
+
+    assert filtered.status_code == 200
+    assert [item["id"] for item in filtered.json()["items"]] == [request_ids[0]]
+    assert [item["estado"] for item in filtered.json()["items"]] == ["contactado"]
+    assert pending.status_code == 200
+    assert [item["id"] for item in pending.json()["items"]] == [request_ids[1]]
+    assert unfiltered.status_code == 200
+    assert len(unfiltered.json()["items"]) == 2
+    assert invalid_state.status_code == 422

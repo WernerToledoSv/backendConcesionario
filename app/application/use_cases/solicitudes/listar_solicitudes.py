@@ -1,9 +1,10 @@
-from typing import List
+from typing import List, Optional
 
 from app.application.dto.solicitud_dto import (
     DetalleSolicitudResponseDTO,
     SolicitudCompraResponseDTO,
 )
+from app.domain.entities.solicitud_compra import EstadoSolicitud
 from app.domain.repositories.solicitud_repository import SolicitudRepository
 
 
@@ -11,7 +12,10 @@ class ListarSolicitudesUseCase:
     def __init__(self, repository: SolicitudRepository):
         self._repository = repository
 
-    def execute(self) -> List[SolicitudCompraResponseDTO]:
+    def execute(
+        self,
+        estado: Optional[EstadoSolicitud] = None,
+    ) -> List[SolicitudCompraResponseDTO]:
         return [
             SolicitudCompraResponseDTO(
                 id=solicitud.id,
@@ -37,5 +41,5 @@ class ListarSolicitudesUseCase:
                     for detalle in solicitud.detalles
                 ],
             )
-            for solicitud in self._repository.get_all()
+            for solicitud in self._repository.get_all(estado)
         ]

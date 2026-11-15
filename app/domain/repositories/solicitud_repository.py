@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from app.domain.entities.solicitud_compra import SolicitudCompra
+from app.domain.entities.solicitud_compra import EstadoSolicitud, SolicitudCompra
 
 
 class SolicitudRepository(ABC):
@@ -21,7 +21,10 @@ class SolicitudRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_all(self) -> List[SolicitudCompra]:
+    def get_all(
+        self,
+        estado: Optional[EstadoSolicitud] = None,
+    ) -> List[SolicitudCompra]:
         raise NotImplementedError
 
     @abstractmethod

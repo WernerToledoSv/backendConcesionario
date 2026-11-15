@@ -27,7 +27,7 @@ from app.core.exceptions import (
     VehiculosSolicitudNotFoundError,
     VehiclesNotProvidedError,
 )
-from app.domain.entities.solicitud_compra import SolicitudCompra
+from app.domain.entities.solicitud_compra import EstadoSolicitud, SolicitudCompra
 from app.infrastructure.repositories.sqlalchemy_solicitud_repository import (
     SQLAlchemySolicitudRepository,
 )
@@ -128,8 +128,11 @@ def crear_solicitud(body: CrearSolicitudRequest, repo: RepoDep):
     summary="Listar solicitudes de compra",
     dependencies=[Depends(get_current_admin)],
 )
-def listar_solicitudes(repo: RepoDep):
-    items = ListarSolicitudesUseCase(repo).execute()
+def listar_solicitudes(
+    repo: RepoDep,
+    estado: EstadoSolicitud | None = None,
+):
+    items = ListarSolicitudesUseCase(repo).execute(estado)
     return ResponseItems(
         code=1,
         message="Solicitudes obtenidas exitosamente.",
