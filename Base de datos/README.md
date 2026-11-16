@@ -47,6 +47,10 @@ detén el servicio sin eliminar los datos:
 docker compose down
 ```
 
+## Usuario predeterminado
+
+El esquema crea el usuario administrador `admin@gmail.com`. La contraseña es 123 el cual servira para ver el panel del administador, este usuario es el mismo usuario que esta en producción en el admiente desplegado en la web.
+
 Los scripts de `/docker-entrypoint-initdb.d` solo se ejecutan cuando PostgreSQL crea un volumen
 vacío. Si `postgres_data` ya existe, cambiar el esquema en el SQL no vuelve a ejecutarlo
 automáticamente. `docker compose down -v` elimina el volumen y todos sus datos; úsalo solo si
