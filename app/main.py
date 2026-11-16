@@ -2,6 +2,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi import Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
@@ -23,6 +24,16 @@ app = FastAPI(
     version="1.0.0",
     docs_url=None,
     redoc_url=None,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://frontendautomarket-git-main-werner-toledos-projects.vercel.app"
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
 )
 
 app.include_router(api_router)
