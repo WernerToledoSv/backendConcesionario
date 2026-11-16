@@ -1,18 +1,22 @@
 def test_allows_preflight_from_frontend(client):
-    origin = "https://frontendautomarket-git-main-werner-toledos-projects.vercel.app"
+    origins = [
+        "https://frontendautomarket-git-main-werner-toledos-projects.vercel.app",
+        "https://frontendautomarket.vercel.app",
+    ]
 
-    for method in ["GET", "POST", "PUT", "DELETE"]:
-        response = client.options(
-            "/health",
-            headers={
-                "Origin": origin,
-                "Access-Control-Request-Method": method,
-            },
-        )
+    for origin in origins:
+        for method in ["GET", "POST", "PUT", "DELETE"]:
+            response = client.options(
+                "/health",
+                headers={
+                    "Origin": origin,
+                    "Access-Control-Request-Method": method,
+                },
+            )
 
-        assert response.status_code == 200
-        assert response.headers["access-control-allow-origin"] == origin
-        assert method in response.headers["access-control-allow-methods"]
+            assert response.status_code == 200
+            assert response.headers["access-control-allow-origin"] == origin
+            assert method in response.headers["access-control-allow-methods"]
 
 
 def test_rejects_unconfigured_method(client):
