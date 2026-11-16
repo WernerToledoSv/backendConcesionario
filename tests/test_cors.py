@@ -5,7 +5,7 @@ def test_allows_preflight_from_frontend(client):
     ]
 
     for origin in origins:
-        for method in ["GET", "POST", "PUT", "DELETE"]:
+        for method in ["GET", "POST", "PUT", "PATCH", "DELETE"]:
             response = client.options(
                 "/health",
                 headers={
@@ -24,7 +24,7 @@ def test_rejects_unconfigured_method(client):
         "/health",
         headers={
             "Origin": "https://frontendautomarket-git-main-werner-toledos-projects.vercel.app",
-            "Access-Control-Request-Method": "PATCH",
+            "Access-Control-Request-Method": "TRACE",
         },
     )
 
