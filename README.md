@@ -254,6 +254,12 @@ El cambio de estado permite únicamente estas transiciones:
 | `confirmada` | `completada`, `cancelada` |
 | `rechazada`, `cancelada`, `completada` | Ninguno (finales) |
 
+Al pasar una solicitud a `confirmada`, sus vehículos cambian a `reservado`; al pasarla a
+`completada`, cambian a `vendido`. Si se cancela una solicitud confirmada, sus vehículos reservados
+vuelven a `disponible`, salvo que estén asociados a otra solicitud confirmada. La confirmación
+devuelve `409` si algún vehículo ya no está disponible. Los cambios de solicitud y vehículos se
+guardan en una sola transacción.
+
 Cada cambio de estado o de notas administrativas actualiza `actualizado_en`.
 
 `GET /api/v1/solicitudes/ListarSolicitudes` devuelve cada solicitud con sus datos de cliente y un

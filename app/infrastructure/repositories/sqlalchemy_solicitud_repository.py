@@ -5,7 +5,10 @@ from typing import List, Optional
 from sqlalchemy import update
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.exceptions import VehiculosSolicitudNotFoundError
+from app.core.exceptions import (
+    VehiculosEstadoInvalidoError,
+    VehiculosSolicitudNotFoundError,
+)
 from app.domain.entities.detalle_solicitud import DetalleSolicitud
 from app.domain.entities.solicitud_compra import EstadoSolicitud, SolicitudCompra
 from app.domain.repositories.solicitud_repository import SolicitudRepository
@@ -134,8 +137,116 @@ class SQLAlchemySolicitudRepository(SolicitudRepository):
                 actualizado_en=datetime.now(timezone.utc),
             )
         )
+        if result.rowcount != 1:
+            self._db.rollback()
+            return False
+
+        vehiculos_ids = [
+            row[0]
+            for row in self._db.query(DetalleSolicitudModel.vehiculo_id)
+            .filter(DetalleSolicitudModel.solicitud_id == solicitud_id)
+            .order_by(DetalleSolicitudModel.vehiculo_id)
+            .all()
+        ]
+
+        if estado_nuevo in ("confirmada", "completada"):
+            vehiculos = (
+                self._db.query(VehiculoModel.id, VehiculoModel.estado)
+                .filter(VehiculoModel.id.in_(vehiculos_ids))
+                .order_by(VehiculoModel.id)
+                .with_for_update()
+                .all()
+            )
+            estados_por_id = {vehiculo_id: estado for vehiculo_id, estado in vehiculos}
+            solicitudes_confirmadas = self._get_vehicles_in_other_confirmed_requests(
+                solicitud_id,
+                vehiculos_ids,
+            )
+            estado_requerido = (
+                "disponible" if estado_nuevo == "confirmada" else "reservado"
+            )
+            vehiculos_invalidos = [
+                vehiculo_id
+                for vehiculo_id in vehiculos_ids
+                if estados_por_id.get(vehiculo_id) != estado_requerido
+                or vehiculo_id in solicitudes_confirmadas
+            ]
+            if vehiculos_invalidos:
+                self._db.rollback()
+                raise VehiculosEstadoInvalidoError(
+                    vehiculos_invalidos,
+                    estado_requerido,
+                )
+
+            estado_vehiculo_nuevo = (
+                "reservado" if estado_nuevo == "confirmada" else "vendido"
+            )
+            if vehiculos_ids:
+                self._db.execute(
+                    update(VehiculoModel)
+                    .where(VehiculoModel.id.in_(vehiculos_ids))
+                    .values(
+                        estado=estado_vehiculo_nuevo,
+                        actualizado_en=datetime.now(timezone.utc),
+                    )
+                )
+        elif estado_actual == "confirmada" and estado_nuevo == "cancelada":
+            vehiculos = (
+                self._db.query(VehiculoModel.id, VehiculoModel.estado)
+                .filter(VehiculoModel.id.in_(vehiculos_ids))
+                .order_by(VehiculoModel.id)
+                .with_for_update()
+                .all()
+            )
+            solicitudes_confirmadas = self._get_vehicles_in_other_confirmed_requests(
+                solicitud_id,
+                vehiculos_ids,
+            )
+            vehiculos_a_liberar = [
+                vehiculo_id
+                for vehiculo_id, estado in vehiculos
+                if estado == "reservado"
+                and vehiculo_id not in solicitudes_confirmadas
+            ]
+            if vehiculos_a_liberar:
+                self._db.execute(
+                    update(VehiculoModel)
+                    .where(
+                        VehiculoModel.id.in_(vehiculos_a_liberar),
+                        VehiculoModel.estado == "reservado",
+                    )
+                    .values(
+                        estado="disponible",
+                        actualizado_en=datetime.now(timezone.utc),
+                    )
+                )
+
         self._db.commit()
-        return result.rowcount == 1
+        return True
+
+    def _get_vehicles_in_other_confirmed_requests(
+        self,
+        solicitud_id: int,
+        vehiculos_ids: List[int],
+    ) -> set[int]:
+        if not vehiculos_ids:
+            return set()
+        return {
+            row[0]
+            for row in (
+                self._db.query(DetalleSolicitudModel.vehiculo_id)
+                .join(
+                    SolicitudCompraModel,
+                    SolicitudCompraModel.id == DetalleSolicitudModel.solicitud_id,
+                )
+                .filter(
+                    SolicitudCompraModel.id != solicitud_id,
+                    SolicitudCompraModel.estado == "confirmada",
+                    DetalleSolicitudModel.vehiculo_id.in_(vehiculos_ids),
+                )
+                .all()
+            )
+        }
 
     @staticmethod
     def _to_entity(model: SolicitudCompraModel) -> SolicitudCompra:

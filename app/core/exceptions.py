@@ -65,3 +65,14 @@ class InvalidSolicitudTransitionError(Exception):
 
 class ConcurrentSolicitudUpdateError(Exception):
     pass
+
+
+class VehiculosEstadoInvalidoError(Exception):
+    def __init__(self, vehiculo_ids: list[int], estado_requerido: str):
+        self.vehiculo_ids = vehiculo_ids
+        self.estado_requerido = estado_requerido
+        ids = ", ".join(map(str, vehiculo_ids))
+        super().__init__(
+            f"Los vehículos {ids} deben estar en estado "
+            f"'{estado_requerido}' y no pertenecer a otra solicitud confirmada."
+        )

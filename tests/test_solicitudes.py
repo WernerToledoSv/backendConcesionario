@@ -116,14 +116,17 @@ def test_catalog_lists_all_request_states(client):
 
 
 def test_notes_and_state_changes_require_admin_and_update_request(client, test_db):
-    vehicle_id = add_vehicle(test_db, "Marca A", "12000.00")
+    vehicle_ids = [
+        add_vehicle(test_db, "Marca A", "12000.00"),
+        add_vehicle(test_db, "Marca B", "8500.00"),
+    ]
     created = client.post(
         "/api/v1/solicitudes/CrearSolicitud",
         json={
             "nombre_cliente": "Cliente Ejemplo",
             "correo_cliente": "cliente@example.com",
             "telefono_cliente": "555-0101",
-            "vehiculos_ids": [vehicle_id],
+            "vehiculos_ids": vehicle_ids,
         },
     )
     request_id = created.json()["item"]["id"]
@@ -157,6 +160,18 @@ def test_notes_and_state_changes_require_admin_and_update_request(client, test_d
             headers=headers,
         )
         assert response.status_code == 200
+        if state == "confirmada":
+            with test_db() as db:
+                assert all(
+                    db.get(VehiculoModel, vehicle_id).estado == "reservado"
+                    for vehicle_id in vehicle_ids
+                )
+        elif state == "completada":
+            with test_db() as db:
+                assert all(
+                    db.get(VehiculoModel, vehicle_id).estado == "vendido"
+                    for vehicle_id in vehicle_ids
+                )
 
     invalid_transition = client.patch(
         f"/api/v1/solicitudes/ActualizarEstado/{request_id}",
@@ -179,6 +194,91 @@ def test_notes_and_state_changes_require_admin_and_update_request(client, test_d
     assert request_data["estado"] == "completada"
     assert request_data["notas_administrador"] == "Llamar mañana."
     assert request_data["actualizado_en"] is not None
+
+
+def test_cancelling_confirmed_request_releases_vehicles(client, test_db):
+    vehicle_id = add_vehicle(test_db, "Marca A", "12000.00")
+    created = client.post(
+        "/api/v1/solicitudes/CrearSolicitud",
+        json={
+            "nombre_cliente": "Cliente Ejemplo",
+            "correo_cliente": "cliente@example.com",
+            "telefono_cliente": "555-0101",
+            "vehiculos_ids": [vehicle_id],
+        },
+    )
+    request_id = created.json()["item"]["id"]
+    headers = login_headers(client, test_db)
+
+    contacted = client.patch(
+        f"/api/v1/solicitudes/ActualizarEstado/{request_id}",
+        json={"estado": "contactado"},
+        headers=headers,
+    )
+    confirmed = client.patch(
+        f"/api/v1/solicitudes/ActualizarEstado/{request_id}",
+        json={"estado": "confirmada"},
+        headers=headers,
+    )
+    cancelled = client.patch(
+        f"/api/v1/solicitudes/ActualizarEstado/{request_id}",
+        json={"estado": "cancelada"},
+        headers=headers,
+    )
+
+    assert contacted.status_code == 200
+    assert confirmed.status_code == 200, confirmed.text
+    assert cancelled.status_code == 200
+    with test_db() as db:
+        assert db.get(VehiculoModel, vehicle_id).estado == "disponible"
+
+
+def test_cannot_confirm_requests_for_already_reserved_vehicles(client, test_db):
+    vehicle_id = add_vehicle(test_db, "Marca A", "12000.00")
+    other_vehicle_id = add_vehicle(test_db, "Marca B", "8500.00")
+    request_ids = []
+    for customer, vehicle_ids in (
+        ("Cliente Uno", [vehicle_id]),
+        ("Cliente Dos", [vehicle_id, other_vehicle_id]),
+    ):
+        created = client.post(
+            "/api/v1/solicitudes/CrearSolicitud",
+            json={
+                "nombre_cliente": customer,
+                "correo_cliente": f"{customer.lower().replace(' ', '')}@example.com",
+                "telefono_cliente": "555-0101",
+                "vehiculos_ids": vehicle_ids,
+            },
+        )
+        assert created.status_code == 201
+        request_ids.append(created.json()["item"]["id"])
+
+    headers = login_headers(client, test_db)
+    for request_id in request_ids:
+        contacted = client.patch(
+            f"/api/v1/solicitudes/ActualizarEstado/{request_id}",
+            json={"estado": "contactado"},
+            headers=headers,
+        )
+        assert contacted.status_code == 200
+
+    first_confirmation = client.patch(
+        f"/api/v1/solicitudes/ActualizarEstado/{request_ids[0]}",
+        json={"estado": "confirmada"},
+        headers=headers,
+    )
+    second_confirmation = client.patch(
+        f"/api/v1/solicitudes/ActualizarEstado/{request_ids[1]}",
+        json={"estado": "confirmada"},
+        headers=headers,
+    )
+
+    assert first_confirmation.status_code == 200, first_confirmation.text
+    assert second_confirmation.status_code == 409
+    with test_db() as db:
+        assert db.get(VehiculoModel, vehicle_id).estado == "reservado"
+        assert db.get(VehiculoModel, other_vehicle_id).estado == "disponible"
+        assert db.get(SolicitudCompraModel, request_ids[1]).estado == "contactado"
 
 
 def test_list_requests_can_filter_by_state_with_admin_token(client, test_db):

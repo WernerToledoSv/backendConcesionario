@@ -24,6 +24,7 @@ from app.core.exceptions import (
     InvalidSolicitudStateError,
     InvalidSolicitudTransitionError,
     SolicitudNotFoundError,
+    VehiculosEstadoInvalidoError,
     VehiculosSolicitudNotFoundError,
     VehiclesNotProvidedError,
 )
@@ -196,6 +197,11 @@ def actualizar_estado(
             detail={"code": 0, "message": str(exc)},
         ) from exc
     except InvalidSolicitudTransitionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": 0, "message": str(exc)},
+        ) from exc
+    except VehiculosEstadoInvalidoError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": 0, "message": str(exc)},
