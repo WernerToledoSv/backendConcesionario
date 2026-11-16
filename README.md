@@ -13,8 +13,7 @@ El backend se encarga de gestionar la información de los vehículos, administra
 | PostgreSQL  | Sistema de base de datos.               |
 | SQLAlchemy  | ORM para interactuar con PostgreSQL.    |
 | Pydantic    | Validación y estructura de datos.       |
-| Alembic     | Administración de migraciones.          |
-|             |                                         |
+| Alembic     | Dependencia prevista para migraciones; el repositorio aún no incluye configuración ni revisiones. |
 | Uvicorn     | Servidor ASGI.                          |
 | Docker      | Contenerización de la aplicación.       |
 
@@ -28,6 +27,16 @@ El backend utiliza una arquitectura modular basada en Clean Architecture y los p
 
 ```text
 backendConcesionario/
+│
+├── .github/
+│   ├── agents/
+│   └── skills/
+│
+├── Base de datos/
+│   ├── bdConcesionario.sql
+│   ├── docker-compose.yml
+│   ├── Dockerfile
+│   └── README.md
 │
 ├── app/
 │   ├── core/
@@ -63,11 +72,13 @@ backendConcesionario/
 │   └── main.py
 │
 ├── migrations/
+├── tests/
 │
 ├── .env.example
 ├── .gitignore
 ├── Dockerfile
 ├── requirements.txt
+├── requirements-dev.txt
 └── README.md
 ```
 
@@ -93,6 +104,10 @@ Las principales entidades contempladas son:
 | detalle_solicitud  | Vehículos asociados a cada solicitud.              |
 
 La conexión se configura mediante la variable de entorno `DATABASE_URL`, permitiendo utilizar una instancia local o un servicio en la nube como Neon.
+
+La aplicación no crea las tablas al iniciar. Antes de usarla, la base de datos configurada debe tener el esquema de PostgreSQL, incluidas `solicitudes_compra`, `detalle_solicitud` y `vehiculos`. Aunque Alembic figura entre las dependencias, este repositorio todavía no contiene su configuración ni revisiones; por tanto, el esquema debe aprovisionarse por separado.
+
+Para crear la base de datos local con Docker Compose, consulta la guía de [Base de datos](<Base de datos/README.md>).
 
 ## Instalación y configuración
 
@@ -191,9 +206,17 @@ FastAPI genera automáticamente documentación interactiva para consultar y ejec
 | Recurso              | URL                                                                |
 | -------------------- | ------------------------------------------------------------------ |
 | Swagger UI           | [http://localhost:8000/docs](http://localhost:8000/docs)           |
+| Swagger UI desplegado | [https://backendconcesionario.onrender.com/docs](https://backendconcesionario.onrender.com/docs) |
 | ReDoc                | [http://localhost:8000/redoc](http://localhost:8000/redoc)         |
 | Estado de la API     | [http://localhost:8000/health](http://localhost:8000/health)       |
 | Estado de PostgreSQL | [http://localhost:8000/health/db](http://localhost:8000/health/db) |
+
+### CORS
+
+La API permite peticiones desde los orígenes `https://frontendautomarket.vercel.app` y
+`https://frontendautomarket-git-main-werner-toledos-projects.vercel.app`. Acepta los métodos
+`GET`, `POST`, `PUT`, `PATCH` y `DELETE`; si cambia el dominio del frontend, actualiza la
+configuración en `app/main.py`.
 
 ## Endpoints disponibles
 
@@ -337,6 +360,18 @@ pytest
 ```
 
 Las pruebas usan SQLite en memoria; no requieren una base PostgreSQL ni credenciales reales.
+
+## Agente y skills de Copilot
+
+El repositorio incluye personalizaciones para apoyar el trabajo de desarrollo. No afectan la
+ejecución de la API:
+
+| Personalización | Propósito |
+| --------------- | --------- |
+| [Agente Scoped Developer](.github/agents/scoped-developer.agent.md) | Limita el análisis y los cambios a los archivos relacionados con la tarea. |
+| [documentar-cambios](.github/skills/documentar-cambios/SKILL.md) | Documenta cambios confirmados en el código y las pruebas. |
+| [uso-eficiente-de-tokens](.github/skills/uso-eficiente-de-tokens/SKILL.md) | Promueve exploración acotada y validaciones proporcionales. |
+| [api-fastapi-postgres](.github/skills/api-fastapi-postgres/SKILL.md) | Aplica los patrones de capas, persistencia y pruebas del backend. |
 
 ## Consideraciones
 
